@@ -1,0 +1,79 @@
+
+from tkinter import Tk, filedialog
+from eccodes import (
+    codes_grib_new_from_file,
+    codes_get,
+    codes_release
+)
+from collections import Counter
+
+# GRIB-Datei auswählen
+root = Tk()
+root.withdraw()
+
+datei = filedialog.askopenfilename(
+    title="ERA5-GRIB-Datei auswählen",
+    filetypes=[("GRIB-Dateien", "*.grib *.grb"), ("Alle Dateien", "*.*")]
+)
+
+if not datei:
+    print("Keine Datei ausgewählt.")
+    raise SystemExit
+
+print(f"Untersuche: {datei}")
+print("Das kann bei 4 GB etwas dauern ...")
+
+# Nachrichten in der GRIB-Datei zählen
+variablen = Counter()
+level_typen = Counter()
+level_werte = Counter()
+zeitpunkte = set()
+
+with open(datei, "rb") as f:
+    while True:
+        gid = codes_grib_new_from_file(f)
+
+        if gid is None:
+            break
+
+        try:
+            variablen[codes_get(gid, "shortName")] += 1
+            level_typen[codes_get(gid, "typeOfLevel")] += 1
+            level_werte[
+                (codes_get(gid, "typeOfLevel"),
+                 codes_get(gid, "level"))
+            ] += 1
+
+            zeitpunkte.add(codes_get(gid, "dataDate"))
+
+        finally:
+            codes_release(gid)
+
+# Ergebnis anzeigen
+print("\n--- ENTHALTENE VARIABLEN ---")
+for name, anzahl in variablen.items():
+    print(f"{name}: {anzahl} Nachrichten")
+
+print("\n--- DRUCKEBENEN ---")
+for (typ, level), anzahl in sorted(level_werte.items()):
+    print(f"{typ}: {level}")
+
+print("\n--- ZEITRAUM ---")
+if zeitpunkte:
+    print(f"Von {min(zeitpunkte)} bis {max(zeitpunkte)}")
+
+# Ergebnis speichern
+with open("grib_inventar.txt", "w", encoding="utf-8") as f:
+    f.write("VARIABLEN:\n")
+    for name, anzahl in variablen.items():
+        f.write(f"{name}: {anzahl}\n")
+
+    f.write("\nDRUCKEBENEN:\n")
+    for (typ, level), anzahl in sorted(level_werte.items()):
+        f.write(f"{typ}: {level}\n")
+
+    f.write("\nZEITRAUM:\n")
+    if zeitpunkte:
+        f.write(f"Von {min(zeitpunkte)} bis {max(zeitpunkte)}\n")
+
+print("\nFertig! Ergebnis gespeichert in grib_inventar.txt")
