@@ -1,0 +1,15 @@
+# Große ERA5-Wetterdaten
+*.grib
+*.grb
+*.grib2
+
+# Python
+__pycache__/
+*.pyc
+
+# Virtuelle Python-Umgebungen
+.venv/
+venv/
+
+# IDE
+.vscode/
